@@ -1,0 +1,60 @@
+version: "3.9"
+
+services:
+  transcripto_api:
+    build: .
+    container_name: server
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - ./db_dump.sql:/app/db_dump.sql
+      - ./logs:/app/logs   # Mount logs directory so logs are available locally
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "uvicorn app.main:app --host 0.0.0.0 --port 8000
+             --log-config app/core/logging_config.yaml
+             --access-log /app/logs/access.log"
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      # Enable logging
+      POSTGRES_LOGGING_COLLECTOR: "on"
+      POSTGRES_LOG_DESTINATION: "stderr"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./logs/db:/var/log/postgresql   # DB logs persisted locally
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 2s
+      retries: 15
+      start_period: 5s
+
+  redis:
+    image: redis:7.0-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --logfile /data/redis.log
+    volumes:
+      - redis_data:/data
+      - ./logs/redis:/data             # Redis logs persisted locally
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      retries: 15
+      start_period: 5s
+
+volumes:
+  pg_data:
+  redis_data:

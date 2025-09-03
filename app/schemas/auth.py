@@ -33,9 +33,3 @@ class ResetPasswordRequest(BaseModel):
     email: str
     code: str
     new_password: str
-
-class PublicUser(BaseModel):
-    id: str
-    email: str
-    name: str
-    is_verified: bool

@@ -92,7 +92,7 @@ docker compose up --build
 * **server**: FastAPI app, imports DB dump automatically
 ---
 
-## 🔑 Authentication APIs  
+## Authentication APIs  
 
 ## 1. Signup  
 
@@ -249,7 +249,7 @@ Authorization: Bearer <jwt-token>
 }
 ```
 ---
-## 🎬 Transcript API
+## Transcript API
 
 ### GET `/v1/transcripts?video_id={video_id}&language={language_code}`
 

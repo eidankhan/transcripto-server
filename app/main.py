@@ -47,6 +47,8 @@ origins = [
     "http://localhost:3000",
     "https://transcripto.dev",
     "https://www.transcripto.dev"
+    "https://api.transcripto.dev",
+    "https://www.api.transcripto.dev"
 ]
 
 app.add_middleware(

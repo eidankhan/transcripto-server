@@ -10,10 +10,11 @@ function extractVideoId(url) {
 
 $(document).ready(function () {
     const token = localStorage.getItem('access_token');
-    if (!token) {
-        window.location.href = 'login.html';
-        return;
-    }
+    if (!token) { window.location.href = 'login.html'; return; }
+
+    $('#user-display-name').text(localStorage.getItem('user_name') || 'User');
+    renderHistory();
+
     $('#fetch-btn').on('click', async function () {
         const rawInput = $('#video-id').val().trim();
         if (!rawInput) return;
@@ -21,8 +22,7 @@ $(document).ready(function () {
         const videoId = extractVideoId(rawInput);
         const btn = $(this);
 
-        btn.prop('disabled', true).text("...");
-        // Ensure workspace is hidden while loading new data
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
         $('#result-workspace').addClass('d-none');
 
         try {
@@ -35,50 +35,95 @@ $(document).ready(function () {
             if (response.ok) {
                 $('#transcript-output').text(result.data.transcript);
                 $('#timestamp-output').text(result.data.transcript_with_timestamps);
-
-                // SHOW the workspace only now
                 $('#result-workspace').removeClass('d-none');
+                
+                // Intelligent History Management
+                addToHistory(videoId);
             } else {
-                alert("Error fetching transcript.");
+                alert("Error fetching transcript. Please check the URL.");
             }
         } catch (error) {
-            alert("Connection error.");
+            alert("Connection error to server.");
         } finally {
             btn.prop('disabled', false).text("Extract");
         }
     });
 
+    // Logout
     $('#logout-btn').on('click', function () {
-        localStorage.removeItem('access_token');
+        localStorage.clear();
         window.location.href = 'login.html';
+    });
+
+    // Tab Switching
+    $(document).on('click', '#transcriptTabs .nav-link', function (e) {
+        e.preventDefault();
+        $('#transcriptTabs .nav-link').removeClass('active');
+        $(this).addClass('active');
+        $('.tab-pane').removeClass('show active');
+        const target = $(this).data('bs-target');
+        $(target).addClass('show active');
+        $('#download-btn').text($(this).attr('id') === 'plain-tab' ? "Download .txt" : "Download .srt");
     });
 });
 
+// History Logic
+function addToHistory(videoId) {
+    let history = JSON.parse(localStorage.getItem('transcripto_history') || "[]");
+    // Move to top if exists, else add new
+    history = history.filter(item => item !== videoId);
+    history.unshift(videoId);
+    // Keep only last 10 items
+    if (history.length > 10) history.pop();
+    localStorage.setItem('transcripto_history', JSON.stringify(history));
+    renderHistory();
+}
 
-function copyCurrentTab() {
-    // 1. Identify which tab is currently visible to the user
-    const isActivePlain = $('#plain-tab').hasClass('active');
-    const targetId = isActivePlain ? '#transcript-output' : '#timestamp-output';
+function renderHistory() {
+    const history = JSON.parse(localStorage.getItem('transcripto_history') || "[]");
+    const list = $('#history-list');
+    list.empty();
 
-    // 2. Get the text content
-    const textToCopy = $(targetId).text();
-
-    if (!textToCopy) {
-        alert("No text found to copy!");
+    if (history.length === 0) {
+        list.append('<div class="p-4 text-muted small">No recent extractions</div>');
         return;
     }
 
-    // 3. Use the Clipboard API
-    navigator.clipboard.writeText(textToCopy).then(() => {
-        // Visual feedback
-        const originalBtnText = $('.card-footer .btn').text();
-        $('.card-footer .btn').text('✅ Copied!').addClass('btn-success').removeClass('btn-outline-secondary');
-
-        setTimeout(() => {
-            $('.card-footer .btn').text(originalBtnText).addClass('btn-outline-secondary').removeClass('btn-success');
-        }, 2000);
-    }).catch(err => {
-        console.error('Could not copy text: ', err);
-        alert("Failed to copy. Please select and copy manually.");
+    history.forEach(id => {
+        list.append(`
+            <button class="history-item" onclick="loadFromHistory('${id}')">
+                <i class="bi bi-clock-history"></i>
+                <span class="text-truncate">Video: ${id}</span>
+            </button>
+        `);
     });
+}
+
+function loadFromHistory(id) {
+    $('#video-id').val(`https://www.youtube.com/watch?v=${id}`);
+    $('#fetch-btn').trigger('click');
+}
+
+function downloadCurrentTab() {
+    const isPlain = $('#plain-tab').hasClass('active');
+    const content = isPlain ? $('#transcript-output').text() : $('#timestamp-output').text();
+    if (!content) return;
+
+    const videoId = extractVideoId($('#video-id').val()) || "transcript";
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Transcripto_${videoId}.${isPlain ? 'txt' : 'srt'}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+function copyCurrentTab() {
+    const isPlain = $('#plain-tab').hasClass('active');
+    const content = isPlain ? $('#transcript-output').text() : $('#timestamp-output').text();
+    if (content) {
+        navigator.clipboard.writeText(content).then(() => alert("Copied!"));
+    }
 }

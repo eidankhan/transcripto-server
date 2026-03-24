@@ -1,44 +1,91 @@
-# /app/core/logger.py
 import os
 import logging
+import sys
+import time
+import uuid
 from logging.handlers import RotatingFileHandler
+from fastapi import Request
 
 # ---------------------------
-# Determine project root
+# Path & Directory Setup
 # ---------------------------
+# Navigates to the project root where 'logs/' should live
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-
-# Logs directory in project root
 logs_dir = os.path.join(project_root, "logs")
-os.makedirs(logs_dir, exist_ok=True)  # Ensure directory exists
+os.makedirs(logs_dir, exist_ok=True)
 
-# Log file path
 log_file_path = os.path.join(logs_dir, "api.log")
 
 # ---------------------------
-# Create logger
+# Logging Configuration
 # ---------------------------
-logger = logging.getLogger("yt_transcript_api")
-logger.setLevel(logging.INFO)
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
-# Formatter
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+# Detailed format: Timestamp | Level | Module:Line | Message
+formatter = logging.Formatter(
+    "%(asctime)s | %(levelname)s | %(module)s:%(lineno)d | %(message)s"
+)
 
-# Console handler
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
+# 1. Console Handler (for Docker logs / stdout)
+console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setFormatter(formatter)
 
-# File handler with rotation
+# 2. Rotating File Handler (5MB limit per file, keeping 5 backups)
 file_handler = RotatingFileHandler(
     log_file_path, maxBytes=5*1024*1024, backupCount=5, encoding="utf-8"
 )
-file_handler.setLevel(logging.INFO)
 file_handler.setFormatter(formatter)
 
-# Attach handlers only once
-if not logger.hasHandlers():
-    logger.addHandler(console_handler)
-    logger.addHandler(file_handler)
+# ---------------------------
+# Logger Initialization
+# ---------------------------
+def setup_logging():
+    # Root logger setup to intercept library logs (uvicorn, sqlalchemy, etc.)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(LOG_LEVEL)
+    
+    if not root_logger.hasHandlers():
+        root_logger.addHandler(console_handler)
+        root_logger.addHandler(file_handler)
 
-logger.info(f"Logger initialized. Log file: {log_file_path}")
+    # Specific app logger
+    app_logger = logging.getLogger("transcripto")
+    app_logger.info(f"🚀 Logger initialized. Level: {LOG_LEVEL} | File: {log_file_path}")
+    return app_logger
+
+logger = setup_logging()
+
+# ---------------------------
+# Middleware Function
+# ---------------------------
+async def log_requests_middleware(request: Request, call_next):
+    """
+    Logs every incoming HTTP request, its execution time, and status code.
+    """
+    request_id = str(uuid.uuid4())
+    start_time = time.time()
+    
+    # Log the incoming call
+    logger.info(f"ID: {request_id} | Req: {request.method} {request.url.path}")
+
+    try:
+        response = await call_next(request)
+        
+        # Calculate processing time in milliseconds
+        process_time = (time.time() - start_time) * 1000
+        formatted_time = f"{process_time:.2f}ms"
+
+        # Log completion
+        logger.info(
+            f"ID: {request_id} | Res: {response.status_code} | Time: {formatted_time}"
+        )
+
+        # Inject Request ID into headers for frontend debugging
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+    except Exception as e:
+        # Log unhandled exceptions that occur during the request
+        process_time = (time.time() - start_time) * 1000
+        logger.error(f"ID: {request_id} | Failed: {str(e)} | Time: {process_time:.2f}ms")
+        raise e

@@ -1,9 +1,17 @@
 from pydantic import BaseModel, EmailStr, Field
+from enum import Enum
+
+# Define roles as an Enum for consistency across the app
+class UserRole(str, Enum):
+    ADMIN = "ADMIN"
+    USER = "USER"
 
 class SignUpRequest(BaseModel):
     name: str = Field(min_length=3, max_length=50)
     email: EmailStr
     password: str = Field(min_length=8)
+    # Role is not included here to prevent users from 
+    # sending "role": "ADMIN" in the POST body.
 
 class VerifyEmailRequest(BaseModel):
     email: EmailStr
@@ -21,10 +29,10 @@ class PublicUser(BaseModel):
     id: int
     email: EmailStr
     is_verified: bool
+    role: UserRole = UserRole.USER  # Default role for API visibility
 
     class Config:
         from_attributes = True
-
 
 class ForgotPasswordRequest(BaseModel):
     email: str

@@ -130,8 +130,8 @@ def login(db: Session, email: str, password: str) -> str:
         logger.warning(f"Login attempt with unverified email: {email}")
         raise HTTPException(status_code=403, detail="Email not verified.")
 
-    token = create_access_token(sub=str(user.id))
-    logger.info(f"Login successful for user: {email}")
+    token = create_access_token(sub=str(user.id), role=user.role)
+    logger.info(f"Login successful for user: {email} | Role: {user.role}")
     return token
 
 def resend_verification_email(db: Session, email: str):

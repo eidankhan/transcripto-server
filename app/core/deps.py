@@ -3,7 +3,9 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from datetime import datetime, timezone
 from app.utils.security import decode_access_token
-from app.core.redis import r  # your redis client
+from app.core.redis import r 
+from app.core.logger import logger
+
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -29,5 +31,20 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             detail="Token has been revoked",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
+    logger.info(f"Payload Received:{payload}")
     return payload
+
+# --- New Admin Dependency ---
+
+async def require_admin(current_user: dict = Depends(get_current_user)):
+    """
+    Enforce that the logged-in user has the 'ADMIN' role.
+    """
+    role = current_user.get("role")
+    logger.info(f"Current User Role:{role}")
+    if role != "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrative privileges required.",
+        )
+    return current_user

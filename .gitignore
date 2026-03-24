@@ -53,3 +53,5 @@ Thumbs.db
 logs/
 
 *db_dump.sql
+
+.env

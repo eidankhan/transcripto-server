@@ -13,12 +13,19 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed: str) -> bool:
     return pwd_context.verify(password, hashed)
 
-def create_access_token(sub: str) -> str:
+def create_access_token(sub: str, role: str) -> str:
     now = datetime.now(timezone.utc)
     expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": sub, "iat": int(now.timestamp()), "exp": int(expire.timestamp())}
+    
+    # Add 'role' to the payload so the dependency can find it later
+    payload = {
+        "sub": sub, 
+        "role": role, 
+        "iat": int(now.timestamp()), 
+        "exp": int(expire.timestamp())
+    }
+    
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
-
 def decode_access_token(token: str) -> dict:
     """
     Decode a JWT and return the payload.
@@ -49,3 +56,4 @@ def refresh_access_token(refresh_token: str) -> dict:
             detail="Invalid or expired refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+

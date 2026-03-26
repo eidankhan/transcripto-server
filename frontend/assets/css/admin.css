@@ -1,0 +1,141 @@
+:root {
+    --primary-accent: #4f46e5;
+    --sidebar-dark: #0f172a;
+    --sidebar-width: 260px;
+    --sidebar-collapsed-width: 80px;
+    --transition-speed: 0.3s;
+}
+
+/* Essential Reset for Full-Width */
+html,
+body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    background-color: #f8fafc;
+}
+
+/* The Wrapper that holds everything */
+.wrapper {
+    display: flex;
+    width: 100%;
+    min-height: 100vh;
+    align-items: stretch;
+}
+
+/* --- Sidebar --- */
+#mainSidebar {
+    min-width: var(--sidebar-width);
+    max-width: var(--sidebar-width);
+    background: var(--sidebar-dark);
+    color: #fff;
+    transition: all var(--transition-speed);
+    position: relative;
+    z-index: 1000;
+}
+
+#mainSidebar.collapsed {
+    min-width: var(--sidebar-collapsed-width);
+    max-width: var(--sidebar-collapsed-width);
+}
+
+/* --- Main Content --- */
+#content {
+    width: 100%;
+    padding: 2.5rem;
+    min-width: 0;
+    /* Important for Chart.js responsiveness */
+    transition: all var(--transition-speed);
+    flex-grow: 1;
+}
+
+/* Sidebar Elements */
+.sidebar-header {
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.nav-link {
+    padding: 15px 25px;
+    display: flex;
+    align-items: center;
+    color: #94a3b8 !important;
+    white-space: nowrap;
+    transition: 0.3s;
+}
+
+.nav-link i {
+    font-size: 1.4rem;
+    margin-right: 15px;
+    min-width: 30px;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    color: #fff !important;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-link.active {
+    background: var(--primary-accent);
+}
+
+/* Hide text when collapsed */
+.collapsed .sidebar-text,
+.collapsed .sidebar-header span {
+    display: none;
+}
+
+/* --- Dashboard UI --- */
+.card-panel {
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    margin-bottom: 25px;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+.kpi-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.stickiness-num {
+    font-size: 3.5rem;
+    font-weight: 800;
+    color: var(--primary-accent);
+}
+
+/* Responsive Mobile Sidebar */
+@media (max-width: 991px) {
+    #mainSidebar {
+        margin-left: calc(var(--sidebar-width) * -1);
+    }
+
+    #mainSidebar.mobile-open {
+        margin-left: 0;
+    }
+
+    #content {
+        width: 100%;
+        padding: 1.5rem;
+    }
+}
+
+#adminWrapper.d-none {
+    display: none !important;
+}

@@ -15,10 +15,10 @@ function extractVideoId(url) {
 }
 
 $(document).ready(function () {
-    const token = localStorage.getItem('access_token');
+    const token = sessionStorage.getItem('access_token');
     if (!token) { window.location.href = 'login.html'; return; }
 
-    $('#user-display-name').text(localStorage.getItem('user_name') || 'User');
+    $('#user-display-name').text(sessionStorage.getItem('user_name') || 'User');
     renderHistory();
 
     $('#fetch-btn').on('click', async function () {
@@ -78,7 +78,7 @@ $(document).ready(function () {
     });
 
     $('#logout-btn').on('click', function () {
-        localStorage.clear();
+        sessionStorage.clear();
         window.location.href = 'login.html';
     });
 
@@ -118,16 +118,16 @@ function formatSrtTimestamps(srtText) {
 }
 
 function addToHistory(videoId) {
-    let history = JSON.parse(localStorage.getItem('transcripto_history') || "[]");
+    let history = JSON.parse(sessionStorage.getItem('transcripto_history') || "[]");
     history = history.filter(item => item !== videoId);
     history.unshift(videoId);
     if (history.length > 10) history.pop();
-    localStorage.setItem('transcripto_history', JSON.stringify(history));
+    sessionStorage.setItem('transcripto_history', JSON.stringify(history));
     renderHistory();
 }
 
 function renderHistory() {
-    const history = JSON.parse(localStorage.getItem('transcripto_history') || "[]");
+    const history = JSON.parse(sessionStorage.getItem('transcripto_history') || "[]");
     const list = $('#history-list');
     list.empty();
     if (history.length === 0) {

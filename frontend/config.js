@@ -5,9 +5,17 @@ const isLocal = window.location.hostname === "localhost" || window.location.host
 
 const CONFIG = {
     // Automatically switches based on where the browser is running
-    API_BASE_URL: isLocal 
-        ? "http://localhost/api" 
+    API_BASE_URL: isLocal
+        ? "http://localhost/api"
         : "https://api.transcripto.dev",
-    
+
     VERSION: "1.0.0"
 };
+
+(function () {
+    const link = document.createElement('link');
+    link.type = 'image/png';
+    link.rel = 'icon';
+    link.href = 'favicon.ico';
+    document.getElementsByTagName('head')[0].appendChild(link);
+})();

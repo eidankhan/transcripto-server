@@ -37,9 +37,13 @@ def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)):
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     logger.info(f"Login API called for email: {payload.email}")
     try:
-        token = auth_service.login(db, payload.email, payload.password)
+        # result is a dict: {"access_token": "...", "token_type": "bearer", "role": "USER"}
+        result = auth_service.login(db, payload.email, payload.password)
         logger.info(f"Login successful for email: {payload.email}")
-        return TokenResponse(access_token=token)
+        
+        # ✅ Return the dict; FastAPI maps the keys to your TokenResponse schema
+        return result 
+        
     except HTTPException as e:
         logger.warning(f"Login failed for email: {payload.email} - {e.detail}")
         raise

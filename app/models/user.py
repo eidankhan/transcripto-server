@@ -21,3 +21,4 @@ class User(Base):
 
     # This line ensures the 'role' column is created in the DB via SQLAlchemy
     role = Column(SqlEnum(UserRole), default=UserRole.USER, nullable=False)
+    last_login = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())

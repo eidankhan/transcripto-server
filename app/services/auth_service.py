@@ -11,6 +11,7 @@ from app.utils.email import send_email, validate_and_normalize_email, generate_v
 from app.core.logger import logger
 from sqlalchemy.exc import SQLAlchemyError
 from app.core.redis import r
+from sqlalchemy import func
 
 CODE_TTL_MINUTES = 15
 MAX_ATTEMPTS = 5
@@ -119,21 +120,46 @@ def verify_email(db: Session, email: str, code: str):
 def login(db: Session, email: str, password: str) -> str:
     logger.info(f"Login attempt for email: {email}")
     
-    # ✅ Validate + normalize email first
+    # 1. Validate + normalize email
     validate_and_normalize_email(email)
 
+    # 2. Fetch User
     user = get_user_by_email(db, email)
+    
+    # 3. Security Checks
     if not user or not verify_password(password, user.password_hash):
         logger.warning(f"Invalid credentials for email: {email}")
         raise HTTPException(status_code=401, detail="Invalid credentials.")
+        
     if not user.is_verified:
         logger.warning(f"Login attempt with unverified email: {email}")
         raise HTTPException(status_code=403, detail="Email not verified.")
 
-    token = create_access_token(sub=str(user.id), role=user.role)
-    logger.info(f"Login successful for user: {email} | Role: {user.role}")
-    return token
+    # 4. UPDATE LAST LOGIN (Crucial for Admin Analytics)
+    try:
+        user.last_login = func.now()
+        db.commit()
+        db.refresh(user)
+        logger.info(f"Updated last_login for user: {user.id}")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to update last_login for user {user.id}: {e}")
+        # We don't raise an error here because the user successfully 
+        # authenticated; we don't want to block their login if 
+        # just the timestamp update fails.
 
+    # 5. Generate Token
+    token = create_access_token(sub=str(user.id), role=user.role)
+    
+    logger.info(f"Login successful for user: {email} | Role: {user.role}")
+    
+    # Return both so the frontend can react immediately
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "role": user.role # <--- Add this
+    }
+    
 def resend_verification_email(db: Session, email: str):
 
     logger.info(f"Resend verification email requested for: {email}")

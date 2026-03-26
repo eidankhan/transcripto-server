@@ -14,18 +14,21 @@ def verify_password(password: str, hashed: str) -> bool:
     return pwd_context.verify(password, hashed)
 
 def create_access_token(sub: str, role: str) -> str:
+    """
+    Generates a JWT with user ID (sub) and permissions (role).
+    """
     now = datetime.now(timezone.utc)
     expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     
-    # Add 'role' to the payload so the dependency can find it later
     payload = {
-        "sub": sub, 
+        "sub": str(sub), # Ensure sub is a string for JWT standards
         "role": role, 
         "iat": int(now.timestamp()), 
         "exp": int(expire.timestamp())
     }
     
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
+
 def decode_access_token(token: str) -> dict:
     """
     Decode a JWT and return the payload.
@@ -38,15 +41,24 @@ def decode_access_token(token: str) -> dict:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     
 def refresh_access_token(refresh_token: str) -> dict:
+    """
+    Creates a new access token from a valid refresh token.
+    Note: Requires 'role' to be present in the refresh token payload.
+    """
     try:
         payload = jwt.decode(refresh_token, JWT_SECRET, algorithms=[JWT_ALG])
-        sub = payload["sub"]
+        sub = payload.get("sub")
+        role = payload.get("role")
 
-        # Generate new access token (sync call)
-        new_access = create_access_token(sub)
+        if not sub or not role:
+            raise JWTError("Missing payload claims")
+
+        # Generate new access token with the same identity and role
+        new_access = create_access_token(sub=sub, role=role)
 
         return {"access_token": new_access, "token_type": "bearer"}
 
@@ -56,4 +68,3 @@ def refresh_access_token(refresh_token: str) -> dict:
             detail="Invalid or expired refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-

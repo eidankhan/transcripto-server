@@ -15,7 +15,7 @@ const adminController = {
         } else {
             // If not authorized, redirect to the main login page
             console.warn("Unauthorized access attempt to Admin. Redirecting...");
-            window.location.href = 'login.html'; 
+            window.location.href = 'login.html';
         }
     },
 
@@ -42,11 +42,31 @@ const adminController = {
      * Updates the top-level metric cards
      */
     updateKPIs(data) {
+        // 1. Standard Stats
         document.getElementById('stat-total-users').innerText = data.totals.users;
         document.getElementById('stat-total-transcripts').innerText = data.totals.transcripts;
         document.getElementById('stat-avg-sessions').innerText = data.totals.sessions;
-        document.getElementById('stickiness-ratio').innerText = data.engagement.stickiness + "%";
-        document.getElementById('stickiness-bar').style.width = data.engagement.stickiness + "%";
+
+        // 2. Guest & Lead Stats (Mapping to your specific JSON keys)
+        const guestTranscriptsEl = document.getElementById('stat-guest-transcripts');
+        if (guestTranscriptsEl) {
+            guestTranscriptsEl.innerText = data.totals.guest_transcripts;
+        }
+
+        const anonUsersEl = document.getElementById('stat-anon-users');
+        if (anonUsersEl) {
+            anonUsersEl.innerText = data.totals.anonymous_users;
+        }
+
+        const powerGuestsEl = document.getElementById('stat-power-guests');
+        if (powerGuestsEl) {
+            powerGuestsEl.innerText = data.totals.power_guests;
+        }
+
+        // 3. Stickiness
+        const ratio = data.engagement.stickiness || 0;
+        document.getElementById('stickiness-ratio').innerText = ratio + '%';
+        document.getElementById('stickiness-bar').style.width = ratio + '%';
     },
 
     /**

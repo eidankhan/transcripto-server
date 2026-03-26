@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.database import Base, engine
+from app.core.database import Base, engine, init_db
 from app.routers import auth as auth_router, transcript as transcript_router, admin
 from app.core.logger import logger
 from app.utils.create_admin import create_initial_admin  # Ensure this file is in your root
@@ -12,25 +12,22 @@ from app.core.logger import logger, log_requests_middleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # --- Startup Logic ---
     logger.info("🚀 Application starting up...")
     
-    # 1. Automatically create tables (replaces your standalone metadata line)
-    # Using 'begin' ensures the schema is committed before moving to admin creation
-    Base.metadata.create_all(bind=engine)
-    logger.info("✅ Database tables verified/created.")
+    # 1. Handle all Database Schema work
+    init_db() 
+    logger.info("✅ Database infrastructure ready.")
 
-    # 2. Run your Admin Automation
+    # 2. Handle Initial Data / Business logic
     try:
         await create_initial_admin()
-        logger.info("👤 Admin check/creation complete.")
+        logger.info("👤 Admin verification complete.")
     except Exception as e:
-        logger.error(f"❌ Failed to ensure admin user: {e}")
+        logger.error(f"❌ Admin automation failed: {e}")
 
     yield 
     
-    # --- Shutdown Logic ---
-    logger.info("🛑 Application shutting down, flushing logs...")
+    logger.info("🛑 Application shutting down...")
     logging.shutdown()
 
 # Initialize FastAPI with the lifespan manager

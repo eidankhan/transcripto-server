@@ -1,5 +1,6 @@
 from typing import Optional
-from fastapi import APIRouter, Query, Depends, status
+from app.services.limit_service import LimitService
+from fastapi import APIRouter, Query, Depends, status, Request
 from sqlalchemy.orm import Session
 
 from app.services.transcript_service import get_transcript
@@ -7,7 +8,7 @@ from app.core.database import get_db  # Import your DB dependency
 from app.core.exceptions import TranscriptError
 from app.schemas.transcript import SuccessResponse, ErrorResponse
 from app.core.logger import logger
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_optional_user
 
 router = APIRouter(prefix="/v1/transcripts", tags=["transcripts"])
 
@@ -24,18 +25,34 @@ router = APIRouter(prefix="/v1/transcripts", tags=["transcripts"])
     description="Returns cleaned transcript and audit-logged metadata."
 )
 async def fetch_transcript(
+    request: Request, # <--- Added to get IP
     video_id: str = Query(..., description="YouTube video ID"),
     language: Optional[str] = Query(None, description="Optional language code"),
     db: Session = Depends(get_db),                # ✅ Inject DB Session
-    current_user: dict = Depends(get_current_user) # ✅ Enforce JWT
+    # current_user: dict = Depends(get_current_user) # ✅ Enforce JWT
+    current_user: Optional[dict] = Depends(get_optional_user) # <--- Made Optional
 ):
-    # Extract user_id from the 'sub' field (assuming 'sub' is the PK ID)
-    user_id = int(current_user['sub'])
+    user_id = None
     
-    logger.info(f"User {user_id} requested transcript for video_id={video_id}")
+    if current_user:
+        # Authenticated User Flow (Unlimited or Subscription-based)
+        user_id = int(current_user['sub'])
+        logger.info(f"Auth User {user_id} requested video_id={video_id}")
+    else:
+        # Anonymous Guest Flow (IP Rate Limited)
+        client_ip = request.client.host
+        logger.info(f"Guest IP {client_ip} requested video_id={video_id}")
+        
+        # Check if this IP has used up its 5 daily requests
+        if not LimitService.check_anonymous_limit(db, client_ip):
+            return ErrorResponse(
+                status="error",
+                code=403,
+                message="Daily free limit reached. Please register to unlock more!",
+            )
 
     try:
-        # ✅ Pass DB and user_id to the service
+        # Pass user_id (it will be None for guests)
         transcript = await get_transcript(
             db=db, 
             video_id=video_id, 
@@ -43,21 +60,7 @@ async def fetch_transcript(
             language=language
         )
         
-        logger.info(f"Transcript fetched and audited for video_id={video_id}")
-
-        # FastAPI handles the 200 OK and model serialization automatically
-        return SuccessResponse(
-            status="success",
-            code=200,
-            data=transcript,
-        )
+        return SuccessResponse(status="success", code=200, data=transcript)
 
     except TranscriptError as e:
-        logger.error(f"Error for video_id={video_id}: {e.message}")
-        # Return the error schema directly; FastAPI handles the status_code via response_model
-        return ErrorResponse(
-            status="error",
-            code=e.code,
-            message=e.message,
-            error=str(e),
-        )
+        return ErrorResponse(status="error", code=e.code, message=e.message)

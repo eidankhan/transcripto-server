@@ -1,5 +1,6 @@
 from http.client import HTTPException
 
+from app.services.limit_service import LimitService
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
@@ -80,18 +81,33 @@ class AdminService:
          .group_by('period')\
          .order_by('period')\
          .all()
+         
+         
+         # --- START OF PLUGGED DATA ---
+        # Fetch the guest-specific metrics from our new LimitService method
+        anon_stats = LimitService.get_anonymous_stats(db)
+        
+        # Count how many total transcripts were fetched specifically by Guests (user_id is NULL)
+        guest_transcripts = db.query(TranscriptAudit).filter(TranscriptAudit.user_id.is_(None)).count()
+        # --- END OF PLUGGED DATA ---
 
         return {
-            "totals": {
-                "users": total_users,
-                "transcripts": total_transcripts,
-                "sessions": dau
-            },
-            "engagement": {
-                "stickiness": stickiness,
-                "usageTrend": {
-                    "labels": [row.period.strftime("%b %d" if timeframe != "yearly" else "%b %Y") for row in trend_data] or ["No Data"],
-                    "values": [float(row.avg_usage) for row in trend_data] or [0]
-                }
+        "totals": {
+            "users": total_users,
+            "transcripts": total_transcripts,
+            "sessions": dau,
+            "anonymous_users": anon_stats["total_anonymous"],
+            "power_guests": anon_stats["power_guests"],
+            "guest_transcripts": guest_transcripts
+        },
+        "engagement": {
+            "stickiness": stickiness,
+            "usageTrend": {
+                # Ensure row.period is not None before calling strftime
+                "labels": [row.period.strftime("%b %d" if timeframe != "yearly" else "%b %Y") for row in trend_data if row.period] or ["No Data"],
+                
+                # Use 0.0 if row.avg_usage is None
+                "values": [float(row.avg_usage) if row.avg_usage is not None else 0.0 for row in trend_data] or [0]
             }
         }
+    }

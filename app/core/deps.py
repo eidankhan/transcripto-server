@@ -1,10 +1,12 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from datetime import datetime, timezone
 from app.utils.security import decode_access_token
 from app.core.redis import r 
 from app.core.logger import logger
+from typing import Optional
+
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -48,3 +50,17 @@ async def require_admin(current_user: dict = Depends(get_current_user)):
             detail="Administrative privileges required.",
         )
     return current_user
+
+
+async def get_optional_user(request: Request) -> Optional[dict]:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+    
+    try:
+        token = auth_header.split(" ")[1]
+        payload = decode_access_token(token)
+        return payload
+    except Exception:
+        # If token is invalid/expired, we treat them as a guest
+        return None

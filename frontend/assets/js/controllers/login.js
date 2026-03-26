@@ -21,6 +21,8 @@ $(document).ready(function () {
                 // CHANGED: Use sessionStorage to match your adminService.js
                 sessionStorage.setItem('access_token', data.access_token);
                 sessionStorage.setItem('user_role', data.role);
+                sessionStorage.setItem('name', data.name);
+
 
                 // Redirect logic
                 if (data.role === 'ADMIN') {

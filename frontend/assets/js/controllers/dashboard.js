@@ -18,7 +18,7 @@ $(document).ready(function () {
     const token = sessionStorage.getItem('access_token');
     if (!token) { window.location.href = 'login.html'; return; }
 
-    $('#user-display-name').text(sessionStorage.getItem('user_name') || 'User');
+    $('#user-display-name').text(sessionStorage.getItem('name') || 'User');
     renderHistory();
 
     $('#fetch-btn').on('click', async function () {

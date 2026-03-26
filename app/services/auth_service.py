@@ -157,7 +157,8 @@ def login(db: Session, email: str, password: str) -> str:
     return {
         "access_token": token,
         "token_type": "bearer",
-        "role": user.role # <--- Add this
+        "name": user.name,
+        "role": user.role # <--- Add this,
     }
     
 def resend_verification_email(db: Session, email: str):
